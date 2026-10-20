@@ -3,7 +3,7 @@
     macOS   -> dist/MP3TagFinder-macOS-AppleSilicon.dmg  (or -Intel.dmg on Intel Macs)
     Windows -> dist/MP3TagFinder-Windows.exe
 
-Usage:  python scripts/build.py      (needs: pip install -r requirements.txt pyinstaller)
+Usage:  python scripts/build.py      (needs: pip install -r requirements.txt pyinstaller dmgbuild)
 """
 import os
 import platform
@@ -15,6 +15,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP_NAME = "MP3 Tag Finder"
 BUNDLE_ID = "com.corduroy420.mp3tagfinder"
+# Installer window layout; must match the arrow drawn by scripts/make_dmg_background.py
+DMG_WINDOW_SIZE = (660, 400)
+ICON_POSITIONS = {"app": (170, 205), "Applications": (490, 205)}
 sys.path.insert(0, ROOT)
 from version import __version__  # noqa: E402
 
@@ -22,6 +25,30 @@ from version import __version__  # noqa: E402
 def run(*args):
     print("+", " ".join(args), flush=True)
     subprocess.check_call(args, cwd=ROOT)
+
+
+def build_dmg(app: str, output: str):
+    """A disk image whose window shows the app, an arrow and the Applications folder."""
+    import dmgbuild
+
+    run(sys.executable, "scripts/make_dmg_background.py")
+    if os.path.exists(output):
+        os.remove(output)
+    app_name = os.path.basename(app)
+    print("+ dmgbuild", output, flush=True)
+    dmgbuild.build_dmg(output, APP_NAME, settings={
+        "format": "UDZO",
+        "files": [app],
+        "symlinks": {"Applications": "/Applications"},
+        "icon": os.path.join(ROOT, "build_assets", "icon.icns"),   # the mounted disk's icon
+        "background": os.path.join(ROOT, "build_assets", "dmg-background.png"),  # @2x is picked up too
+        "window_rect": ((200, 120), DMG_WINDOW_SIZE),
+        "default_view": "icon-view",
+        "show_status_bar": False, "show_tab_view": False, "show_toolbar": False,
+        "show_pathbar": False, "show_sidebar": False,
+        "icon_size": 128, "text_size": 13,
+        "icon_locations": {app_name: ICON_POSITIONS["app"], "Applications": ICON_POSITIONS["Applications"]},
+    })
 
 
 def main():
@@ -48,15 +75,7 @@ def main():
         run("codesign", "--force", "--deep", "--sign", "-", app)  # re-sign (ad hoc) after editing Info.plist
         arch = "AppleSilicon" if platform.machine() == "arm64" else "Intel"
         output = os.path.join(dist, f"MP3TagFinder-macOS-{arch}.dmg")
-        staging = os.path.join(dist, "dmg")
-        shutil.rmtree(staging, ignore_errors=True)
-        os.makedirs(staging)
-        run("ditto", app, os.path.join(staging, f"{APP_NAME}.app"))
-        os.symlink("/Applications", os.path.join(staging, "Applications"))  # drag-to-install shortcut
-        if os.path.exists(output):
-            os.remove(output)
-        run("hdiutil", "create", "-volname", APP_NAME, "-srcfolder", staging, "-ov", "-format", "UDZO", output)
-        shutil.rmtree(staging)
+        build_dmg(app, output)
     elif system == "Windows":
         output = os.path.join(dist, "MP3TagFinder-Windows.exe")
         shutil.copyfile(os.path.join(dist, f"{APP_NAME}.exe"), output)
