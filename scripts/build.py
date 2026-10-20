@@ -28,7 +28,7 @@ def main():
     run(sys.executable, "scripts/make_icon.py")
     system = platform.system()
     args = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowed",
-            "--name", APP_NAME, "music_tag_checker.py"]
+            "--name", APP_NAME, "--add-data", f"build_assets/icon.png{os.pathsep}.", "music_tag_checker.py"]
     if system == "Darwin":
         args += ["--icon", "build_assets/icon.icns", "--osx-bundle-identifier", BUNDLE_ID]
     elif system == "Windows":

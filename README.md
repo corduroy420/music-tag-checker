@@ -1,3 +1,5 @@
+<img src="assets/logo.png" width="96" alt="MP3 Tag Finder logo" align="right">
+
 # MP3 Tag Finder
 
 A desktop app that scans a folder of music files, reads their tags, and shows which

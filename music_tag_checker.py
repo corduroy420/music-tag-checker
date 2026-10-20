@@ -127,12 +127,28 @@ class MusicTagChecker(tk.Tk):
         required = set(settings.get("required_fields", DEFAULT_REQUIRED))
         self.required_vars = {key: tk.BooleanVar(value=key in required) for key, _ in FIELDS}
 
+        self._set_window_icon()
         self._build_ui()
         self._build_menu()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(1500, lambda: check_in_background(self, lambda r: self.on_update_result(r, manual=False)))
         if initial_folder:
             self.after(200, self.start_scan)
+
+    def _set_window_icon(self):
+        """Title bar / taskbar / Dock icon. The packaged app bundles icon.png next to its code."""
+        here = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+        for path in (os.path.join(here, "icon.png"), os.path.join(here, "build_assets", "icon.png"),
+                     os.path.join(here, "assets", "logo.png")):
+            if os.path.exists(path):
+                try:
+                    photo = tk.PhotoImage(file=path)
+                    factor = max(1, photo.width() // 256)
+                    self._window_icon = photo.subsample(factor) if factor > 1 else photo
+                    self.iconphoto(True, self._window_icon)
+                except tk.TclError:
+                    pass
+                return
 
     # ---------------------------------------------------------------- updates
     def _build_menu(self):
