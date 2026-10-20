@@ -39,6 +39,7 @@ python3 -m venv .venv
 ## Features
 
 - Formats: MP3, FLAC, M4A/MP4/AAC, Ogg Vorbis, Opus, WMA, WAV, AIFF, APE, WavPack, Musepack
+- Drag a folder or songs from Finder/Explorer onto the window to scan them (the window turns pale and shows *Drop here* while you hover)
 - Optionally scans subfolders; skips hidden files (including macOS `._` files)
 - Rows are colour-coded: green = complete, red = missing something, grey = unreadable
 - Choose which fields count as "missing" with the checkboxes

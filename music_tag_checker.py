@@ -26,10 +26,18 @@ from review_dialog import ReviewDialog
 from tag_finder import HAS_YTDLP
 from updater import UpdateDialog, check_in_background, is_newer
 from version import __version__
+from tag_reader import AUDIO_EXTENSIONS
 from tag_reader import (
     ARTWORK, DEFAULT_REQUIRED, FIELD_LABELS, FIELDS, TEXT_FIELDS,
     TrackInfo, find_audio_files, load_artwork, read_track,
 )
+
+try:  # tkinterdnd2 adds drag and drop of files/folders from Finder or Explorer
+    from tkinterdnd2 import COPY, DND_FILES, TkinterDnD
+    _DND_BASES = (TkinterDnD.DnDWrapper,)
+except ImportError:
+    TkinterDnD = None
+    _DND_BASES = ()
 
 try:  # Pillow is optional; it enables JPEG artwork previews.
     from PIL import Image, ImageTk
@@ -82,9 +90,20 @@ def _fmt_duration(seconds: float | None) -> str:
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
-def _scan_worker(folder: str, recursive: bool, cancel: threading.Event, out: queue.Queue):
+def collect_audio_files(sources: list[str], recursive: bool) -> list[str]:
+    """Audio files from a mix of folders and files (e.g. whatever was dropped on the window)."""
+    paths = []
+    for source in sources:
+        if os.path.isdir(source):
+            paths.extend(find_audio_files(source, recursive))
+        elif os.path.isfile(source) and os.path.splitext(source)[1].lower() in AUDIO_EXTENSIONS:
+            paths.append(source)
+    return sorted(dict.fromkeys(os.path.abspath(p) for p in paths), key=str.lower)
+
+
+def _scan_worker(sources: list[str], recursive: bool, cancel: threading.Event, out: queue.Queue):
     try:
-        paths = find_audio_files(folder, recursive)
+        paths = collect_audio_files(sources, recursive)
         out.put(("total", len(paths)))
         for path in paths:
             if cancel.is_set():
@@ -95,9 +114,16 @@ def _scan_worker(folder: str, recursive: bool, cancel: threading.Event, out: que
         out.put(("fatal", str(exc)))
 
 
-class MusicTagChecker(tk.Tk):
+class MusicTagChecker(tk.Tk, *_DND_BASES):
     def __init__(self, initial_folder: str | None = None):
         super().__init__()
+        self.dnd_available = False
+        if TkinterDnD is not None:
+            try:
+                TkinterDnD._require(self)  # load the native drag-and-drop extension into this window
+                self.dnd_available = True
+            except Exception:
+                pass
         self.title(f"MP3 Tag Finder {__version__}")
         self.geometry("1400x780")
         self.minsize(900, 500)
@@ -121,7 +147,8 @@ class MusicTagChecker(tk.Tk):
         self.show_var = tk.StringVar(value=SHOW_OPTIONS[0])
         self.missing_filter_var = tk.StringVar(value="Any field")
         self.search_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="Choose a music folder and press Scan.")
+        self.status_var = tk.StringVar(value="Choose a music folder and press Scan, or drag a folder or songs "
+                                             "onto this window.")
         self.video_var = tk.BooleanVar(value=settings.get("search_video_sites", True) and HAS_YTDLP)
         self._detail_buttons: list[tk.Widget] = []
         self.skipped_version = settings.get("skipped_version", "")
@@ -131,6 +158,7 @@ class MusicTagChecker(tk.Tk):
         self._set_window_icon()
         self._build_ui()
         self._build_menu()
+        self._setup_drag_and_drop()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(1500, lambda: check_in_background(self, lambda r: self.on_update_result(r, manual=False)))
         if initial_folder:
@@ -150,6 +178,81 @@ class MusicTagChecker(tk.Tk):
                 except tk.TclError:
                     pass
                 return
+
+    # ---------------------------------------------------------------- drag and drop
+    def _setup_drag_and_drop(self):
+        self._drop_overlay = tk.Canvas(self, highlightthickness=0, borderwidth=0, background="#f4f2fb")
+        self._drop_overlay.bind("<Configure>", lambda e: self._draw_drop_overlay())
+        self._hide_overlay_job = None
+        if not self.dnd_available:
+            return
+        try:
+            self.drop_target_register(DND_FILES)  # child widgets pass drops up to the window
+        except tk.TclError:
+            self.dnd_available = False
+            return
+        self.dnd_bind("<<DropEnter>>", self._on_drag_enter)
+        self.dnd_bind("<<DropPosition>>", self._on_drag_enter)
+        self.dnd_bind("<<DropLeave>>", self._on_drag_leave)
+        self.dnd_bind("<<Drop>>", self._on_drop)
+
+    def _draw_drop_overlay(self):
+        c = self._drop_overlay
+        c.delete("all")
+        w, h = c.winfo_width(), c.winfo_height()
+        if w < 50 or h < 50:
+            return
+        m = 24
+        c.create_rectangle(m, m, w - m, h - m, outline="#8b7fd4", width=3, dash=(14, 10))
+        cx, cy = w / 2, h / 2
+        c.create_line(cx, cy - 110, cx, cy - 40, fill="#6d5fc4", width=10, capstyle="round")
+        c.create_line(cx - 32, cy - 72, cx, cy - 40, cx + 32, cy - 72, fill="#6d5fc4", width=10,
+                      capstyle="round", joinstyle="round")
+        c.create_text(cx, cy + 10, text="Drop here", fill="#3b2f8f", font=("TkDefaultFont", 34, "bold"))
+        c.create_text(cx, cy + 56, text="A folder or songs: they'll be scanned straight away",
+                      fill="#6b6690", font=("TkDefaultFont", 15))
+
+    def _show_drop_overlay(self):
+        if self._hide_overlay_job:
+            self.after_cancel(self._hide_overlay_job)
+            self._hide_overlay_job = None
+        if not self._drop_overlay.winfo_ismapped():
+            self._drop_overlay.place(x=0, y=0, relwidth=1, relheight=1)
+            tk.Misc.lift(self._drop_overlay)  # Canvas.lift() would raise a drawing, not the widget
+            self.update_idletasks()
+            self._draw_drop_overlay()
+
+    def _hide_drop_overlay(self):
+        self._hide_overlay_job = None
+        self._drop_overlay.place_forget()
+
+    def _on_drag_enter(self, event):
+        if not self.scanning:
+            self._show_drop_overlay()
+        return COPY
+
+    def _on_drag_leave(self, event):
+        # Leaving one part of the window and entering another fires leave/enter pairs; a short
+        # delay stops the overlay from flickering while the drag is still over the window.
+        if not self._hide_overlay_job:
+            self._hide_overlay_job = self.after(120, self._hide_drop_overlay)
+
+    def _on_drop(self, event):
+        self._hide_drop_overlay()
+        self.handle_dropped_paths(list(self.tk.splitlist(event.data)))
+        return COPY
+
+    def handle_dropped_paths(self, paths: list[str]):
+        if self.scanning:
+            self.status_var.set("Wait for the current scan to finish (or cancel it), then drop again.")
+            return
+        paths = [p for p in paths if os.path.exists(p)]
+        if not collect_audio_files(paths, self.recursive_var.get()):
+            messagebox.showinfo("No music found",
+                                "There are no music files in what you dropped. Drop a folder or audio files "
+                                "(" + ", ".join(sorted(e.lstrip(".") for e in AUDIO_EXTENSIONS)) + ").")
+            return
+        self.start_scan(sources=paths)
 
     # ---------------------------------------------------------------- updates
     def _build_menu(self):
@@ -315,19 +418,27 @@ class MusicTagChecker(tk.Tk):
         else:
             self.start_scan()
 
-    def start_scan(self):
-        folder = os.path.expanduser(self.folder_var.get().strip())
-        if not folder:
-            self.browse()
-            return
-        if not os.path.isdir(folder):
-            messagebox.showerror("Folder not found", f"This folder does not exist:\n{folder}")
-            return
+    def start_scan(self, sources: list[str] | None = None):
+        """Scan the folder in the folder box, or `sources` (dropped folders/files) when given."""
         if self.scanning:
             return
+        if sources:
+            folders = [s if os.path.isdir(s) else os.path.dirname(s) for s in sources]
+            folder = os.path.commonpath(folders) if len(folders) > 1 else folders[0]
+            self.folder_var.set(folder)
+        else:
+            folder = os.path.expanduser(self.folder_var.get().strip())
+            if not folder:
+                self.browse()
+                return
+            if not os.path.isdir(folder):
+                messagebox.showerror("Folder not found", f"This folder does not exist:\n{folder}")
+                return
+            sources = [folder]
         self.tracks = []
         self.scan_root = folder
-        self.save_settings()
+        if sources == [folder]:  # remember whole folders, not a handful of dropped songs
+            self.save_settings()
         self.tree.delete(*self.tree.get_children())
         self.clear_details()
         self.scanning = True
@@ -337,7 +448,7 @@ class MusicTagChecker(tk.Tk):
         self.progress.configure(value=0, maximum=1)
         self.status_var.set("Looking for music files…")
         threading.Thread(target=_scan_worker, daemon=True,
-                         args=(folder, self.recursive_var.get(), self.cancel_event, self.scan_queue)).start()
+                         args=(sources, self.recursive_var.get(), self.cancel_event, self.scan_queue)).start()
         self.after(50, self.poll_scan)
 
     def poll_scan(self):
@@ -754,10 +865,11 @@ def self_test(report_path: str):
         results["https_deezer"] = bool(tag_finder.search_deezer("Daft Punk", "One More Time"))
         root = tk.Tk()
         root.withdraw()
-        root.destroy()
         results["tk"] = True
+        results["drag_and_drop"] = TkinterDnD is not None and bool(TkinterDnD._require(root))
+        root.destroy()
         results["ok"] = (results["yt_dlp"] and results["parse"] == "Song" and bool(net.CA_FILE)
-                         and results["https_github"] and results["https_deezer"])
+                         and results["https_github"] and results["https_deezer"] and results["drag_and_drop"])
     except Exception as exc:
         results["ok"] = False
         results["error"] = repr(exc)
