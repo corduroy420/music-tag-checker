@@ -1,8 +1,7 @@
-# Music Tag Checker
+# MP3 Tag Finder
 
 A desktop app that scans a folder of music files, reads their tags, and shows which
-tracks are missing title, artist, album, album artist, genre, year, track #, disc #,
-composer or cover artwork.
+tracks are missing title, artist, cover artwork, etc... Then you can click to automatically fill in the missing tag data scraping from different online sources.
 
 ## Setup
 
