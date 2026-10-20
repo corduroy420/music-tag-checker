@@ -3,14 +3,31 @@
 A desktop app that scans a folder of music files, reads their tags, and shows which
 tracks are missing title, artist, cover artwork, etc... Then you can click to automatically fill in the missing tag data scraping from different online sources.
 
-## Setup
+## Download
+
+Get the latest version from the [Releases page](https://github.com/corduroy420/music-tag-checker/releases/latest):
+
+| Computer | File |
+|---|---|
+| Mac with Apple Silicon (M1/M2/M3/M4…) | `MusicTagChecker-macOS-AppleSilicon.dmg` |
+| Mac with an Intel processor | `MusicTagChecker-macOS-Intel.dmg` |
+| Windows 10/11 | `MusicTagChecker-Windows.exe` |
+
+The app checks for new versions each time it opens and offers to download them
+(also under **Help → Check for Updates…**).
+
+**First launch on a Mac:** open the .dmg and drag the app into Applications. Because the app isn't
+notarized by Apple, macOS will say it "cannot be verified" the first time. Click **Done**, then open
+**System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once.
+
+**First launch on Windows:** SmartScreen may say "Windows protected your PC". Click **More info → Run anyway**.
+
+## Run from source
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
-
-## Run
 
 ```bash
 .venv/bin/python music_tag_checker.py            # then click Browse…
@@ -68,6 +85,22 @@ Select tracks (shift-click for a range, ⌘/Ctrl-click to add, ⌘/Ctrl-A for al
    Originals are backed up to a hidden `.tag_backups` folder next to each file unless you turn that off.
 
 Composer is rarely available from these sources, so it usually has to be entered by hand.
+
+## Publishing a new version
+
+1. Change `__version__` in `version.py` (e.g. to `1.0.1`) and commit.
+2. Create a tag whose message is the release notes users will see in the update prompt, and push it:
+
+   ```bash
+   git tag -a v1.0.1 -m "What's new: …"
+   git push && git push origin v1.0.1
+   ```
+
+3. GitHub Actions builds the Mac (Apple Silicon + Intel) and Windows apps, tests that each one starts,
+   and publishes them as a GitHub Release. Installed copies will offer the update the next time they open.
+
+To build locally instead: `pip install pyinstaller`, then `python scripts/build.py` (makes the app for the
+computer you run it on, in `dist/`).
 
 ## Files
 

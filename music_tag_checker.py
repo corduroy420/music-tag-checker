@@ -23,6 +23,8 @@ from cleanup_dialog import CleanupDialog, plan_cleanup
 from edit_dialog import EDITABLE_FIELDS, SINGLE_TRACK_FIELDS, SetTagDialog
 from review_dialog import ReviewDialog
 from tag_finder import HAS_YTDLP
+from updater import UpdateDialog, check_in_background, is_newer
+from version import __version__
 from tag_reader import (
     ARTWORK, DEFAULT_REQUIRED, FIELD_LABELS, FIELDS, TEXT_FIELDS,
     TrackInfo, find_audio_files, load_artwork, read_track,
@@ -95,7 +97,7 @@ def _scan_worker(folder: str, recursive: bool, cancel: threading.Event, out: que
 class MusicTagChecker(tk.Tk):
     def __init__(self, initial_folder: str | None = None):
         super().__init__()
-        self.title("Music Tag Checker")
+        self.title(f"Music Tag Checker {__version__}")
         self.geometry("1400x780")
         self.minsize(900, 500)
 
@@ -119,15 +121,47 @@ class MusicTagChecker(tk.Tk):
         self.missing_filter_var = tk.StringVar(value="Any field")
         self.search_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Choose a music folder and press Scan.")
-        self.video_var = tk.BooleanVar(value=settings.get("search_video_sites", False) and HAS_YTDLP)
+        self.video_var = tk.BooleanVar(value=settings.get("search_video_sites", True) and HAS_YTDLP)
         self._detail_buttons: list[tk.Widget] = []
+        self.skipped_version = settings.get("skipped_version", "")
         required = set(settings.get("required_fields", DEFAULT_REQUIRED))
         self.required_vars = {key: tk.BooleanVar(value=key in required) for key, _ in FIELDS}
 
         self._build_ui()
+        self._build_menu()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.after(1500, lambda: check_in_background(self, lambda r: self.on_update_result(r, manual=False)))
         if initial_folder:
             self.after(200, self.start_scan)
+
+    # ---------------------------------------------------------------- updates
+    def _build_menu(self):
+        menubar = tk.Menu(self)
+        help_menu = tk.Menu(menubar, tearoff=False)
+        help_menu.add_command(label="Check for Updates…", command=self.check_for_updates)
+        help_menu.add_command(label="About Music Tag Checker", command=lambda: messagebox.showinfo(
+            "About", f"Music Tag Checker {__version__}\n\nhttps://github.com/corduroy420/music-tag-checker"))
+        menubar.add_cascade(label="Help", menu=help_menu)
+        self.configure(menu=menubar)
+
+    def check_for_updates(self):
+        self.status_var.set("Checking for updates…")
+        check_in_background(self, lambda release: self.on_update_result(release, manual=True))
+
+    def on_update_result(self, release: dict | None, manual: bool):
+        if manual:
+            self.refresh_view() if self.tracks else self.status_var.set("")
+        if release and is_newer(release["version"]) and (manual or release["version"] != self.skipped_version):
+            UpdateDialog(self, release, on_skip=self.skip_version)
+        elif manual and release:
+            messagebox.showinfo("No updates", f"You have the latest version ({__version__}).")
+        elif manual:
+            messagebox.showwarning("Couldn't check for updates",
+                                   "GitHub could not be reached, or no release has been published yet.")
+
+    def skip_version(self, version: str):
+        self.skipped_version = version
+        self.save_settings()
 
     # ---------------------------------------------------------------- UI setup
     def _build_ui(self):
@@ -330,6 +364,7 @@ class MusicTagChecker(tk.Tk):
             "include_subfolders": self.recursive_var.get(),
             "required_fields": sorted(self.required()),
             "search_video_sites": self.video_var.get(),
+            "skipped_version": self.skipped_version,
         })
 
     def on_close(self):
@@ -687,8 +722,32 @@ class MusicTagChecker(tk.Tk):
         self.status_var.set(f"Exported {len(rows)} tracks to {path}")
 
 
+def self_test(report_path: str):
+    """Used by the release build to prove the packaged app has everything it needs."""
+    results = {"version": __version__}
+    try:
+        import PIL  # noqa: F401
+        import mutagen  # noqa: F401
+        import tag_finder
+        results["yt_dlp"] = tag_finder.HAS_YTDLP
+        results["parse"] = tag_finder.parse_filename("01 - Artist - Song (Official Video) - ArtistVEVO.mp3").title
+        root = tk.Tk()
+        root.withdraw()
+        root.destroy()
+        results["tk"] = True
+        results["ok"] = results["yt_dlp"] and results["parse"] == "Song"
+    except Exception as exc:
+        results["ok"] = False
+        results["error"] = repr(exc)
+    with open(report_path, "w", encoding="utf-8") as fh:
+        json.dump(results, fh)
+    sys.exit(0 if results["ok"] else 1)
+
+
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else None
+    if len(sys.argv) > 2 and sys.argv[1] == "--self-test":
+        self_test(sys.argv[2])
+    folder = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-psn") else None
     MusicTagChecker(folder).mainloop()
 
 
