@@ -850,6 +850,21 @@ class MusicTagChecker(tk.Tk, *_DND_BASES):
         self.status_var.set(f"Exported {len(rows)} tracks to {path}")
 
 
+def _https_reachable(url: str) -> bool:
+    """True if a secure connection to `url` works. Any HTTP answer counts, including GitHub's
+    'rate limit exceeded' (shared build machines hit it); only connection/certificate errors fail."""
+    import urllib.error
+    import urllib.request
+    request = urllib.request.Request(url, headers={"User-Agent": f"MP3TagFinder/{__version__}"})
+    try:
+        urllib.request.urlopen(request, timeout=15, context=net.SSL_CONTEXT).close()
+        return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
+
+
 def self_test(report_path: str):
     """Used by the release build to prove the packaged app has everything it needs."""
     results = {"version": __version__}
@@ -861,7 +876,7 @@ def self_test(report_path: str):
         results["parse"] = tag_finder.parse_filename("01 - Artist - Song (Official Video) - ArtistVEVO.mp3").title
         import updater
         results["certificates"] = net.CA_FILE
-        results["https_github"] = updater.fetch_latest_release() is not None
+        results["https_github"] = _https_reachable(updater.LATEST_RELEASE_API)
         results["https_deezer"] = bool(tag_finder.search_deezer("Daft Punk", "One More Time"))
         root = tk.Tk()
         root.withdraw()
