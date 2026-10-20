@@ -49,23 +49,23 @@ jobs:
       - name: Self-test the macOS app
         if: runner.os == 'macOS'
         run: |
-          "dist/Music Tag Checker.app/Contents/MacOS/Music Tag Checker" --self-test report.json
+          "dist/MP3 Tag Finder.app/Contents/MacOS/MP3 Tag Finder" --self-test report.json
           cat report.json
 
       - name: Self-test the Windows app
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "dist\MusicTagChecker-Windows.exe" -ArgumentList "--self-test","report.json" -Wait -PassThru
+          $p = Start-Process -FilePath "dist\MP3TagFinder-Windows.exe" -ArgumentList "--self-test","report.json" -Wait -PassThru
           Get-Content report.json
           if ($p.ExitCode -ne 0) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MusicTagChecker-${{ matrix.name }}
+          name: MP3TagFinder-${{ matrix.name }}
           path: |
             dist/*.dmg
-            dist/MusicTagChecker-Windows.exe
+            dist/MP3TagFinder-Windows.exe
           if-no-files-found: error
 
   release:
@@ -90,5 +90,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" artifacts/* \
-            --title "Music Tag Checker ${GITHUB_REF_NAME#v}" \
+            --title "MP3 Tag Finder ${GITHUB_REF_NAME#v}" \
             --notes-from-tag

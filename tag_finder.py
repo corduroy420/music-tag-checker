@@ -32,7 +32,7 @@ except ImportError:
 
 HAS_YTDLP = yt_dlp is not None
 
-USER_AGENT = "MusicTagChecker/1.0 (personal music library tag fixer)"
+USER_AGENT = "MP3TagFinder/1.0 (personal music library tag fixer)"
 AUTO_ACCEPT = 0.7    # suggestions at or above this confidence are pre-ticked in the review window
 MATCH_MIN = 0.6      # online results scoring below this are ignored
 STRONG_MATCH = 0.8   # above this, online artist/title spelling beats the file-name guess

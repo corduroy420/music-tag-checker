@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Music Tag Checker - scan a folder of music files and see which tags each track is missing.
+"""MP3 Tag Finder - scan a folder of music files and see which tags each track is missing.
 
 Usage:  python music_tag_checker.py [folder]
 """
@@ -97,7 +97,7 @@ def _scan_worker(folder: str, recursive: bool, cancel: threading.Event, out: que
 class MusicTagChecker(tk.Tk):
     def __init__(self, initial_folder: str | None = None):
         super().__init__()
-        self.title(f"Music Tag Checker {__version__}")
+        self.title(f"MP3 Tag Finder {__version__}")
         self.geometry("1400x780")
         self.minsize(900, 500)
 
@@ -139,8 +139,8 @@ class MusicTagChecker(tk.Tk):
         menubar = tk.Menu(self)
         help_menu = tk.Menu(menubar, tearoff=False)
         help_menu.add_command(label="Check for Updates…", command=self.check_for_updates)
-        help_menu.add_command(label="About Music Tag Checker", command=lambda: messagebox.showinfo(
-            "About", f"Music Tag Checker {__version__}\n\nhttps://github.com/corduroy420/music-tag-checker"))
+        help_menu.add_command(label="About MP3 Tag Finder", command=lambda: messagebox.showinfo(
+            "About", f"MP3 Tag Finder {__version__}\n\nhttps://github.com/corduroy420/music-tag-checker"))
         menubar.add_cascade(label="Help", menu=help_menu)
         self.configure(menu=menubar)
 

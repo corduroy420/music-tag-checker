@@ -40,7 +40,7 @@ def fetch_latest_release(timeout: float = 6) -> dict | None:
     """{'version', 'page', 'download', 'notes'} for the latest GitHub release, or None if unavailable."""
     request = urllib.request.Request(LATEST_RELEASE_API, headers={
         "Accept": "application/vnd.github+json",
-        "User-Agent": f"MusicTagChecker/{__version__}",
+        "User-Agent": f"MP3TagFinder/{__version__}",
     })
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -91,7 +91,7 @@ class UpdateDialog(tk.Toplevel):
 
         body = ttk.Frame(self, padding=16)
         body.pack(fill="both", expand=True)
-        ttk.Label(body, text=f"Music Tag Checker {release['version']} is available",
+        ttk.Label(body, text=f"MP3 Tag Finder {release['version']} is available",
                   font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
         ttk.Label(body, text=f"You have version {__version__}.").pack(anchor="w", pady=(2, 10))
         if release["notes"]:

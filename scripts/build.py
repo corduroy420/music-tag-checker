@@ -1,7 +1,7 @@
 """Build a standalone app for the current OS with PyInstaller and package it for download.
 
-    macOS   -> dist/MusicTagChecker-macOS-AppleSilicon.dmg  (or -Intel.dmg on Intel Macs)
-    Windows -> dist/MusicTagChecker-Windows.exe
+    macOS   -> dist/MP3TagFinder-macOS-AppleSilicon.dmg  (or -Intel.dmg on Intel Macs)
+    Windows -> dist/MP3TagFinder-Windows.exe
 
 Usage:  python scripts/build.py      (needs: pip install -r requirements.txt pyinstaller)
 """
@@ -13,8 +13,8 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-APP_NAME = "Music Tag Checker"
-BUNDLE_ID = "com.corduroy420.musictagchecker"
+APP_NAME = "MP3 Tag Finder"
+BUNDLE_ID = "com.corduroy420.mp3tagfinder"
 sys.path.insert(0, ROOT)
 from version import __version__  # noqa: E402
 
@@ -47,7 +47,7 @@ def main():
             plistlib.dump(info, fh)
         run("codesign", "--force", "--deep", "--sign", "-", app)  # re-sign (ad hoc) after editing Info.plist
         arch = "AppleSilicon" if platform.machine() == "arm64" else "Intel"
-        output = os.path.join(dist, f"MusicTagChecker-macOS-{arch}.dmg")
+        output = os.path.join(dist, f"MP3TagFinder-macOS-{arch}.dmg")
         staging = os.path.join(dist, "dmg")
         shutil.rmtree(staging, ignore_errors=True)
         os.makedirs(staging)
@@ -58,7 +58,7 @@ def main():
         run("hdiutil", "create", "-volname", APP_NAME, "-srcfolder", staging, "-ov", "-format", "UDZO", output)
         shutil.rmtree(staging)
     elif system == "Windows":
-        output = os.path.join(dist, "MusicTagChecker-Windows.exe")
+        output = os.path.join(dist, "MP3TagFinder-Windows.exe")
         shutil.copyfile(os.path.join(dist, f"{APP_NAME}.exe"), output)
     else:
         sys.exit(f"Packaging for {system} is not set up; the PyInstaller output is in {dist}")

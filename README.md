@@ -9,9 +9,9 @@ Get the latest version from the [Releases page](https://github.com/corduroy420/m
 
 | Computer | File |
 |---|---|
-| Mac with Apple Silicon (M1/M2/M3/M4…) | `MusicTagChecker-macOS-AppleSilicon.dmg` |
-| Mac with an Intel processor | `MusicTagChecker-macOS-Intel.dmg` |
-| Windows 10/11 | `MusicTagChecker-Windows.exe` |
+| Mac with Apple Silicon (M1/M2/M3/M4…) | `MP3TagFinder-macOS-AppleSilicon.dmg` |
+| Mac with an Intel processor | `MP3TagFinder-macOS-Intel.dmg` |
+| Windows 10/11 | `MP3TagFinder-Windows.exe` |
 
 The app checks for new versions each time it opens and offers to download them
 (also under **Help → Check for Updates…**).
