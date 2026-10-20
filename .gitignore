@@ -1,0 +1,11 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Tag backups the app creates next to music files
+.tag_backups/
+
+# Exports and OS clutter
+*.csv
+.DS_Store
