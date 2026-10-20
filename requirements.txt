@@ -1,4 +1,5 @@
 mutagen>=1.47
 pillow>=10
+certifi
 # Optional: lets "Find missing tags" fall back to SoundCloud/YouTube artwork
 yt-dlp

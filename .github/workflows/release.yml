@@ -46,8 +46,13 @@ jobs:
       - name: Build
         run: python scripts/build.py
 
+      # Certificate paths are pointed at nothing, as on a user's computer without Python installed,
+      # so the self-test proves HTTPS works with only the certificates packed inside the app.
       - name: Self-test the macOS app
         if: runner.os == 'macOS'
+        env:
+          SSL_CERT_FILE: /nonexistent
+          SSL_CERT_DIR: /nonexistent
         run: |
           "dist/MP3 Tag Finder.app/Contents/MacOS/MP3 Tag Finder" --self-test report.json
           cat report.json
@@ -55,6 +60,9 @@ jobs:
       - name: Self-test the Windows app
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          SSL_CERT_FILE: C:\nonexistent
+          SSL_CERT_DIR: C:\nonexistent
         run: |
           $p = Start-Process -FilePath "dist\MP3TagFinder-Windows.exe" -ArgumentList "--self-test","report.json" -Wait -PassThru
           Get-Content report.json

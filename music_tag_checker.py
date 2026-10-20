@@ -19,6 +19,7 @@ import tkinter as tk
 from collections import Counter
 from tkinter import filedialog, messagebox, ttk
 
+import net
 from cleanup_dialog import CleanupDialog, plan_cleanup
 from edit_dialog import EDITABLE_FIELDS, SINGLE_TRACK_FIELDS, SetTagDialog
 from review_dialog import ReviewDialog
@@ -747,11 +748,16 @@ def self_test(report_path: str):
         import tag_finder
         results["yt_dlp"] = tag_finder.HAS_YTDLP
         results["parse"] = tag_finder.parse_filename("01 - Artist - Song (Official Video) - ArtistVEVO.mp3").title
+        import updater
+        results["certificates"] = net.CA_FILE
+        results["https_github"] = updater.fetch_latest_release() is not None
+        results["https_deezer"] = bool(tag_finder.search_deezer("Daft Punk", "One More Time"))
         root = tk.Tk()
         root.withdraw()
         root.destroy()
         results["tk"] = True
-        results["ok"] = results["yt_dlp"] and results["parse"] == "Song"
+        results["ok"] = (results["yt_dlp"] and results["parse"] == "Song" and bool(net.CA_FILE)
+                         and results["https_github"] and results["https_deezer"])
     except Exception as exc:
         results["ok"] = False
         results["error"] = repr(exc)
@@ -761,6 +767,7 @@ def self_test(report_path: str):
 
 
 def main():
+    net.configure_certificates()
     if len(sys.argv) > 2 and sys.argv[1] == "--self-test":
         self_test(sys.argv[2])
     folder = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-psn") else None

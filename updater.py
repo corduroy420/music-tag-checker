@@ -10,6 +10,7 @@ import urllib.request
 import webbrowser
 from tkinter import ttk
 
+from net import SSL_CONTEXT
 from version import __version__
 
 GITHUB_REPO = "corduroy420/music-tag-checker"
@@ -43,7 +44,7 @@ def fetch_latest_release(timeout: float = 6) -> dict | None:
         "User-Agent": f"MP3TagFinder/{__version__}",
     })
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=SSL_CONTEXT) as response:
             data = json.load(response)
     except Exception:
         return None  # offline, rate-limited, or no releases yet: never bother the user about it

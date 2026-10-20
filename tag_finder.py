@@ -18,6 +18,7 @@ import urllib.request
 from dataclasses import dataclass, fields as dc_fields
 from difflib import SequenceMatcher
 
+from net import SSL_CONTEXT
 from tag_reader import ARTWORK, FIELDS, TrackInfo
 
 try:
@@ -121,7 +122,7 @@ def _http_get(url: str, timeout: float = 15) -> bytes:
         if throttle:
             throttle.wait()
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
+            with urllib.request.urlopen(request, timeout=timeout, context=SSL_CONTEXT) as response:
                 return response.read()
         except urllib.error.HTTPError as exc:
             if exc.code not in (429, 503) or attempt == 2:  # retry only "slow down" responses
